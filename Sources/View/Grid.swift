@@ -117,7 +117,6 @@ public struct Grid: View, LayoutArranging, LayoutPositioning {
             .alignmentGuide(.top, computeValue: { _ in self.topGuide(item: item) })
         }
       }
-      .animation(self.gridAnimation)
       .frame(
         flow: self.flow,
         size: mainGeometry.size,
@@ -128,12 +127,19 @@ public struct Grid: View, LayoutArranging, LayoutPositioning {
         ScrollView(self.scrollAxis) { content }
       }
       .onPreferenceChange(GridPreferenceKey.self) { preference in
-        self.calculateLayout(
-          preference: preference,
-          boundingSize: mainGeometry.size
-        )
-        self.saveAlignmentsFrom(preference: preference)
+          withAnimation(self.gridAnimation) {
+              self.calculateLayout(
+                preference: preference,
+                boundingSize: mainGeometry.size
+              )
+              self.saveAlignmentsFrom(preference: preference)
+          }
       }
+    }
+    .if(contentMode == .contentFit) { content in
+      content.frame(
+        height: self.positions.totalSize?.height ?? 0
+      )
     }
     .id(self.isLoaded)
   }
@@ -204,6 +210,8 @@ public struct Grid: View, LayoutArranging, LayoutPositioning {
     switch self.contentMode {
     case .fill:
       return []
+    case .contentFit:
+      fallthrough
     case .scroll:
       return self.flow == .rows ? .vertical : .horizontal
     }
@@ -268,12 +276,14 @@ extension View {
     case .fill:
       width = size?.width
       height = size?.height
+    case .contentFit:
+      fallthrough
     case .scroll:
       width = (flow == .rows ? size?.width : nil)
       height = (flow == .columns ? size?.height : nil)
     }
     
-    return frame(width: width, height: height, alignment: alignment)
+      return frame(width: width, height: height, alignment: alignment)
   }
 
   fileprivate func padding(spacing: GridSpacing) -> some View {
